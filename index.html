@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check up log</title>
+  <!-- Early theme application to prevent white flash on load -->
+  <script>
+    (function () {
+      try {
+        var THEME_KEY = 'checkup-log-theme';
+        var storedTheme = localStorage.getItem(THEME_KEY);
+        var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = storedTheme || (systemDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-title-wrap">
+        <span class="header-icon" aria-hidden="true">❤️</span>
+        <div class="header-text-block">
+          <h1 class="header-title">Check up log</h1>
+          <p class="header-subtitle">Simple, clear daily records of your health</p>
+        </div>
+      </div>
+
+      <!-- Quick Action & Stats Bar -->
+      <div class="header-actions">
+        <div class="stats-pill" id="totalEntriesPill" aria-live="polite">
+          <span class="stats-label">Total:</span>
+          <span class="stats-count" id="totalCount">0</span>
+        </div>
+        <button type="button" class="btn btn-primary" id="toggleFormBtn" aria-expanded="false" aria-controls="entryFormSection">
+          <span class="btn-icon">➕</span>
+          <span id="toggleFormBtnText">Add Log</span>
+        </button>
+        <button type="button" class="btn-theme-toggle" id="themeToggleBtn" aria-label="Switch to dark mode" title="Switch to dark mode">
+          <span class="theme-icon" id="themeIcon" aria-hidden="true">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- Log Entry Form (Add / Edit) -->
+    <section class="form-section card" id="entryFormSection" aria-labelledby="formTitle">
+      <div class="form-header">
+        <div>
+          <h2 class="form-title" id="formTitle">Add Daily Health Entry</h2>
+          <p class="form-subtitle" id="formSubtitle">Fill in today's numbers and meals below.</p>
+        </div>
+        <button type="button" class="btn-close" id="closeFormBtn" aria-label="Close form">✕</button>
+      </div>
+
+      <form id="healthForm" novalidate>
+        <input type="hidden" id="editingId" value="">
+
+        <!-- SECTION 1: Date & Medication -->
+        <div class="form-group-card">
+          <h3 class="group-heading">
+            <span class="group-icon">📅</span> 1. Date & Medication
+          </h3>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label for="entryDate" class="form-label">
+                Date <span class="label-hint">(Automatically set to today)</span>
+              </label>
+              <input type="date" id="entryDate" class="form-input text-lg" required>
+            </div>
+
+            <div class="form-field">
+              <label class="form-label">Did you take your medication today?</label>
+              <div class="medication-options" role="radiogroup" aria-label="Medication taken">
+                <label class="medication-pill" id="medicationYesLabel">
+                  <input type="radio" name="medicationTaken" id="medicationYes" value="yes" checked>
+                  <span class="medication-pill-btn">✅ Yes, taken</span>
+                </label>
+                <label class="medication-pill" id="medicationNoLabel">
+                  <input type="radio" name="medicationTaken" id="medicationNo" value="no">
+                  <span class="medication-pill-btn">❌ No, not taken</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-field" id="medicationAmountField">
+            <label for="medicationAmount" class="form-label">
+              Medication name and amount (optional) <span class="label-hint">(e.g., Metformin 500mg, 1g, 1 tablet)</span>
+            </label>
+            <div class="input-with-chips">
+              <input 
+                type="text" 
+                id="medicationAmount" 
+                class="form-input text-lg" 
+                placeholder="e.g., Metformin 500mg, 1g, 1 tablet" 
+                value=""
+              >
+              <div class="quick-chips" aria-label="Common medication amounts">
+                <span class="chips-label">Quick pick:</span>
+                <button type="button" class="chip-btn" data-amount="1g">1g</button>
+                <button type="button" class="chip-btn" data-amount="500mg">500mg</button>
+                <button type="button" class="chip-btn" data-amount="250mg">250mg</button>
+                <button type="button" class="chip-btn" data-amount="1 tablet">1 tablet</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: Fasting Blood Sugar -->
+        <div class="form-group-card">
+          <h3 class="group-heading">
+            <span class="group-icon">🩸</span> 2. Fasting Blood Sugar
+          </h3>
+          <div class="form-field">
+            <label for="bloodSugar" class="form-label">
+              Blood Sugar Reading <span class="label-unit">(mg/dL)</span>
+            </label>
+            <div class="input-unit-wrapper">
+              <input type="number" id="bloodSugar" class="form-input text-xl" min="20" max="600" step="1" placeholder="e.g. 95">
+              <span class="input-unit-badge">mg/dL</span>
+            </div>
+            <p class="field-help">Standard fasting target: <strong>70 - 99 mg/dL</strong> is Normal.</p>
+          </div>
+        </div>
+
+        <!-- SECTION 3: Blood Pressure & Pulse -->
+        <div class="form-group-card">
+          <h3 class="group-heading">
+            <span class="group-icon">💪</span> 3. Blood Pressure & Pulse
+          </h3>
+          <p class="group-desc">Take readings on both arms while resting comfortably.</p>
+
+          <div class="bp-grid">
+            <!-- RIGHT ARM -->
+            <div class="arm-box right-arm">
+              <div class="arm-header">
+                <span class="arm-badge">Right Arm</span>
+                <span class="arm-side-hint">👉 Right</span>
+              </div>
+              
+              <div class="form-field">
+                <label for="bpRightSystolic" class="form-label">Systolic <span class="label-hint">(Top number)</span></label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="bpRightSystolic" class="form-input text-lg" min="50" max="300" placeholder="e.g. 120">
+                  <span class="input-unit-badge">mmHg</span>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="bpRightDiastolic" class="form-label">Diastolic <span class="label-hint">(Bottom number)</span></label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="bpRightDiastolic" class="form-input text-lg" min="30" max="200" placeholder="e.g. 80">
+                  <span class="input-unit-badge">mmHg</span>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="bpRightPulse" class="form-label">Pulse <span class="label-hint">(Heart beats/min)</span></label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="bpRightPulse" class="form-input text-lg" min="30" max="220" placeholder="e.g. 72">
+                  <span class="input-unit-badge">bpm</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- LEFT ARM -->
+            <div class="arm-box left-arm">
+              <div class="arm-header">
+                <span class="arm-badge">Left Arm</span>
+                <span class="arm-side-hint">👈 Left</span>
+              </div>
+
+              <div class="form-field">
+                <label for="bpLeftSystolic" class="form-label">Systolic <span class="label-hint">(Top number)</span></label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="bpLeftSystolic" class="form-input text-lg" min="50" max="300" placeholder="e.g. 120">
+                  <span class="input-unit-badge">mmHg</span>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="bpLeftDiastolic" class="form-label">Diastolic <span class="label-hint">(Bottom number)</span></label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="bpLeftDiastolic" class="form-input text-lg" min="30" max="200" placeholder="e.g. 80">
+                  <span class="input-unit-badge">mmHg</span>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="bpLeftPulse" class="form-label">Pulse <span class="label-hint">(Heart beats/min)</span></label>
+                <div class="input-unit-wrapper">
+                  <input type="number" id="bpLeftPulse" class="form-input text-lg" min="30" max="220" placeholder="e.g. 72">
+                  <span class="input-unit-badge">bpm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="field-help mt-2">Normal target: under <strong>120/80 mmHg</strong>. Differences over 10 points between arms will be flagged automatically.</p>
+        </div>
+
+        <!-- SECTION 4: Meals Eaten Today -->
+        <div class="form-group-card">
+          <h3 class="group-heading">
+            <span class="group-icon">🥗</span> 4. What Was Eaten Today?
+          </h3>
+          <p class="group-desc">Jot down what you ate for breakfast, lunch, and dinner.</p>
+
+          <div class="meals-grid">
+            <div class="form-field">
+              <label for="mealMorning" class="form-label">
+                <span class="meal-label-icon">🌅</span> Morning <span class="label-hint">(Breakfast)</span>
+              </label>
+              <textarea id="mealMorning" class="form-textarea" rows="2" placeholder="e.g. Oatmeal with blueberries, green tea"></textarea>
+            </div>
+
+            <div class="form-field">
+              <label for="mealAfternoon" class="form-label">
+                <span class="meal-label-icon">☀️</span> Afternoon <span class="label-hint">(Lunch)</span>
+              </label>
+              <textarea id="mealAfternoon" class="form-textarea" rows="2" placeholder="e.g. Vegetable soup, grilled chicken, brown rice"></textarea>
+            </div>
+
+            <div class="form-field">
+              <label for="mealEvening" class="form-label">
+                <span class="meal-label-icon">🌙</span> Evening <span class="label-hint">(Dinner)</span>
+              </label>
+              <textarea id="mealEvening" class="form-textarea" rows="2" placeholder="e.g. Steamed fish with bok choy and a slice of melon"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Buttons -->
+        <div class="form-actions">
+          <button type="submit" class="btn btn-success btn-large" id="saveEntryBtn">
+            <span class="btn-icon">💾</span>
+            <span id="saveBtnText">Save Today's Entry</span>
+          </button>
+          <button type="button" class="btn btn-secondary btn-large" id="cancelFormBtn">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- SEARCH & ENTRIES SECTION -->
+    <section class="entries-section" aria-labelledby="recordsHeading">
+      <div class="section-top-bar">
+        <div>
+          <h2 class="records-title" id="recordsHeading">Health Log History</h2>
+          <p class="records-subtitle" id="showingCountText">Showing newest entries first</p>
+        </div>
+
+        <!-- Quick Sample Button if Empty -->
+        <button type="button" class="btn-link" id="loadSampleBtn" title="Fill sample data to test">
+          ✨ Add sample entry
+        </button>
+      </div>
+
+      <!-- Search Box -->
+      <div class="search-box card">
+        <label for="searchInput" class="search-label">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <span class="sr-only">Search by date or food</span>
+        </label>
+        <input 
+          type="search" 
+          id="searchInput" 
+          class="search-input" 
+          placeholder="Search by date (e.g. 2026-11) or food (e.g. soup, oatmeal, chicken)..." 
+          aria-label="Search records by date or food"
+        >
+        <button type="button" class="btn-clear-search" id="clearSearchBtn" aria-label="Clear search" hidden>✕</button>
+      </div>
+
+      <!-- Entries Container -->
+      <div id="entriesList" class="entries-list" aria-live="polite">
+        <!-- Dynamic entry cards inserted here by JavaScript -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state card" hidden>
+        <div class="empty-icon" aria-hidden="true">📝</div>
+        <h3 class="empty-title">No Health Entries Found</h3>
+        <p class="empty-desc" id="emptyMessage">
+          You haven't logged any health readings yet. Tap the button below to record your first day!
+        </p>
+        <button type="button" class="btn btn-primary btn-large mt-3" id="emptyAddBtn">
+          ➕ Record First Entry
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Medical Disclaimer & Guidance Notice -->
+  <footer class="app-footer">
+    <div class="disclaimer-card">
+      <div class="disclaimer-header">
+        <span class="disclaimer-icon">🩺</span>
+        <strong class="disclaimer-title">General Guidance & Medical Notice</strong>
+      </div>
+      <p class="disclaimer-text">
+        This check up log is designed for personal daily record-keeping only. The automatic ratings (normal, elevated, high) and arm-difference flags use general published guidelines and are not a medical diagnosis, clinical judgment, or replacement for a licensed doctor. Always consult your physician or healthcare team for any health questions, persistent high or low numbers, or before making any changes to prescribed medication. If you have very high or very low readings, or any symptoms such as chest pain, dizziness or confusion, contact a doctor or emergency services right away.
+      </p>
+    </div>
+  </footer>
+
+  <!-- Confirmation Modal for Deletion -->
+  <div class="modal-backdrop" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-box card">
+      <div class="modal-icon-wrap" aria-hidden="true">🗑️</div>
+      <h3 class="modal-title" id="modalTitle">Delete Health Entry?</h3>
+      <p class="modal-body" id="deleteModalBody">
+        Are you sure you want to delete this log entry? This cannot be undone.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger btn-large" id="confirmDeleteBtn">
+          Yes, Delete Entry
+        </button>
+        <button type="button" class="btn btn-secondary btn-large" id="cancelDeleteBtn">
+          Cancel, Keep It
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification (Copied to WhatsApp, Saved, etc.) -->
+  <div class="toast-notice" id="toastNotice" role="status" aria-live="assertive" hidden>
+    <span class="toast-icon" id="toastIcon">📋</span>
+    <span class="toast-message" id="toastMsg">Copied summary to clipboard!</span>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
